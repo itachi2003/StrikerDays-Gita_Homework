@@ -89,4 +89,60 @@ contract Math {
         require((z = x - y) <= x);
     }
 }
+contract ERC20 is Math, StrikerDaysContract {
+    // --- ERC20 Data ---
+    string  public constant name = "StrikerDays";
+    string  public constant symbol = "SDT";
+    uint8   public decimals = 18;
+    uint256 public totalSupply;
+
+    mapping (address => uint) public balanceOf;
+    mapping (address => mapping (address => uint)) public allowance;
+
+    event Approval(address indexed src, address indexed guy, uint wad);
+    event Transfer(address indexed src, address indexed dst, uint wad);
+
+    // --- Init ---
+    constructor(uint _totalSupply) public {
+        totalSupply = _totalSupply;
+        balanceOf[msg.sender] = _totalSupply;
+        emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+    // --- Token ---
+    function transfer(address dst, uint wad) virtual public returns (bool) {
+        return transferFrom(msg.sender, dst, wad);
+    }
+    function transferFrom(address src, address dst, uint wad) virtual public returns (bool) {
+        require(balanceOf[src] >= wad, "insufficient-balance");
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint).max) {
+            require(allowance[src][msg.sender] >= wad, "insufficient-allowance");
+            allowance[src][msg.sender] = sub(allowance[src][msg.sender], wad);
+        }
+        balanceOf[src] = sub(balanceOf[src], wad);
+        balanceOf[dst] = add(balanceOf[dst], wad);
+        emit Transfer(src, dst, wad);
+        return true;
+    }
+    function approve(address usr, uint wad) virtual public returns (bool) {
+        allowance[msg.sender][usr] = wad;
+        emit Approval(msg.sender, usr, wad);
+        return true;
+    }
+     // submit finished project data for remote SC call
+    // SC Address: 0x1298aFF3Bf44B87bfF03f864e09F2B86f91BE16F 
+    function projectSubmitted(string memory _codeFileHash,string memory _topicName, string memory _authorName, address _sendHashTo) external payable onlyOwner{
+        IProjectSubmitContractCall(_sendHashTo).receiveProjectData{value: msg.value, gas: 1000000}(_codeFileHash, _topicName, _authorName);
+    }
+
+    // get result if project submited to the remote SC
+    function projectReceived()public view onlyOwner returns(bool){
+        return  IProjectSubmitContractCall(0x1298aFF3Bf44B87bfF03f864e09F2B86f91BE16F).isProjectReceived();
+    }
+    
+}
+
+
+
+
 
